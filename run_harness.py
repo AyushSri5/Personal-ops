@@ -46,14 +46,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
 
-from harness.tasks import ALL_TASKS, TASKS_BY_CATEGORY, TASKS_BY_ID, Task
-from harness.runner import run_harness, DEFAULT_TIMEOUT_S, DEFAULT_CONCURRENCY
 from harness.report import render_report
+from harness.runner import DEFAULT_CONCURRENCY, DEFAULT_TIMEOUT_S, run_harness
+from harness.tasks import ALL_TASKS, TASKS_BY_CATEGORY, Task
 
 console = Console()
 

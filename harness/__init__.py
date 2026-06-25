@@ -1,8 +1,8 @@
 """harness package."""
-from .tasks import ALL_TASKS, TASKS_BY_CATEGORY, TASKS_BY_ID, Task
-from .metrics import TaskResult, HarnessReport
-from .runner import run_harness
+from .metrics import HarnessReport, TaskResult
 from .report import render_report
+from .runner import run_harness
+from .tasks import ALL_TASKS, TASKS_BY_CATEGORY, TASKS_BY_ID, Task
 
 __all__ = [
     "ALL_TASKS", "TASKS_BY_CATEGORY", "TASKS_BY_ID", "Task",

@@ -1,9 +1,11 @@
 """Agent state definition."""
 from __future__ import annotations
 
-from typing import Annotated, Sequence
-from langgraph.graph.message import add_messages
+from collections.abc import Sequence
+from typing import Annotated
+
 from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 

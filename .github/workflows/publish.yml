@@ -40,7 +40,7 @@ jobs:
         run: pytest tests/ -v --tb=short
         env:
           OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
-          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          GH_PAT:               ${{ secrets.GH_PAT }}
           NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
           NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
           POSTGRES_PASSWORD:        ${{ secrets.POSTGRES_PASSWORD || 'ops_password' }}
@@ -50,7 +50,7 @@ jobs:
         run: python run_harness.py --dry-run
         env:
           OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
-          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          GH_PAT:               ${{ secrets.GH_PAT }}
           NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
           LOCAL_FILES_ROOT:         /tmp
 
@@ -143,7 +143,7 @@ jobs:
           ops-harness --dry-run
         env:
           OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
-          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          GH_PAT:               ${{ secrets.GH_PAT }}
           NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
           NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
           POSTGRES_PASSWORD:        ${{ secrets.POSTGRES_PASSWORD || 'ops_password' }}

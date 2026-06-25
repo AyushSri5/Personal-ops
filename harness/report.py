@@ -9,13 +9,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
-from rich import box
 
-from harness.metrics import HarnessReport, TaskResult
+from harness.metrics import HarnessReport
 
 console = Console()
 
@@ -206,8 +206,8 @@ def save_markdown_report(report: HarnessReport, path: Path) -> None:
         "",
         "## Summary",
         "",
-        f"| Metric | Value |",
-        f"|---|---|",
+        "| Metric | Value |",
+        "|---|---|",
         f"| Total tasks | {report.total} |",
         f"| ✅ Passed | {report.passed} |",
         f"| ⚠️ Partial | {report.partial} |",

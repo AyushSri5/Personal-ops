@@ -19,6 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import httpx
 from fastmcp import FastMCP
+
 from config.settings import get_settings
 
 settings = get_settings()
@@ -35,8 +36,8 @@ def _headers() -> dict:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    if settings.github_pat:
-        h["Authorization"] = f"Bearer {settings.github_pat}"
+    if settings.gh_pat:
+        h["Authorization"] = f"Bearer {settings.gh_pat}"
     return h
 
 
@@ -47,9 +48,9 @@ def _get(path: str, params: dict | None = None):
 
 
 def _resolve(owner: str, repo: str) -> tuple[str, str]:
-    owner = owner or settings.github_default_owner
+    owner = owner or settings.gh_default_owner
     if not owner:
-        raise ValueError("owner is required (or set GITHUB_DEFAULT_OWNER in .env)")
+        raise ValueError("owner is required (or set gh_default_owner in .env)")
     return owner, repo
 
 

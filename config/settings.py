@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     agent_max_iterations: int = Field(25)
 
     # ── GitHub ────────────────────────────────────────────────────────────────
-    github_pat: str = Field("", description="GitHub personal access token")
-    github_default_owner: str = Field("", description="Default GitHub owner/org")
+    gh_pat: str = Field("", description="GitHub personal access token")
+    gh_default_owner: str = Field("", description="Default GitHub owner/org")
 
     # ── Postgres ──────────────────────────────────────────────────────────────
     postgres_host: str = Field("localhost")

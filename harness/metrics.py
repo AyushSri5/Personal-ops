@@ -4,10 +4,9 @@ Harness metrics — result data model and scoring logic.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from harness.tasks import Task
 
@@ -20,7 +19,7 @@ class TaskResult:
     response: str                          # Agent's final text response
     tools_called: list[str]               # Tools actually invoked
     latency_ms: float                      # Wall-clock time in milliseconds
-    error: Optional[str] = None           # Exception message if failed
+    error: str | None = None           # Exception message if failed
     skipped: bool = False                 # True if task was intentionally skipped
 
     @property

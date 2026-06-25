@@ -15,7 +15,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -31,7 +30,6 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from rich.text import Text
 
 from agent.graph import _build_agent
 from harness.metrics import HarnessReport, TaskResult
@@ -85,7 +83,7 @@ async def run_task(
     agent,
     task: Task,
     timeout_s: int = DEFAULT_TIMEOUT_S,
-    skip_categories: Optional[set[str]] = None,
+    skip_categories: set[str] | None = None,
 ) -> TaskResult:
     """Execute one task and return its TaskResult."""
     if skip_categories and task.category in skip_categories:
@@ -109,7 +107,7 @@ async def run_task(
             tools_called=tools_called,
             latency_ms=latency_ms,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         latency_ms = (time.perf_counter() - t0) * 1000
         return TaskResult(
             task=task,
@@ -137,7 +135,7 @@ async def run_harness(
     tasks: list[Task],
     concurrency: int = DEFAULT_CONCURRENCY,
     timeout_s: int = DEFAULT_TIMEOUT_S,
-    skip_categories: Optional[set[str]] = None,
+    skip_categories: set[str] | None = None,
 ) -> HarnessReport:
     """
     Run all tasks through the agent and return a HarnessReport.
