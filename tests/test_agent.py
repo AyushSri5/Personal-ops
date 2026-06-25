@@ -25,7 +25,7 @@ def test_settings_load_with_defaults(monkeypatch):
 
     settings = get_settings()
     assert settings.openai_api_key == "sk-test-dummy"
-    assert settings.agent_model == "gpt-4o"
+    assert settings.agent_model == "gpt-4o-mini"
     assert settings.agent_max_iterations == 25
     assert settings.postgres_host == "localhost"
     assert settings.postgres_port == 5432
