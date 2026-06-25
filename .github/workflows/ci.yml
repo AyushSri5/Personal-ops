@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Lint ────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check . --output-format=github
+
+  # ── 2. Type check ─────────────────────────────────────────────────────────
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run mypy
+        run: mypy agent/ config/ harness/ --ignore-missing-imports
+
+  # ── 3. Unit tests ─────────────────────────────────────────────────────────
+  test:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run unit tests
+        run: pytest tests/ -v --tb=short
+        env:
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
+          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
+          NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
+          POSTGRES_HOST:            localhost
+          POSTGRES_PORT:            "5432"
+          POSTGRES_USER:            ops_user
+          POSTGRES_PASSWORD:        ${{ secrets.POSTGRES_PASSWORD || 'ops_password' }}
+          POSTGRES_DB:              ops_db
+          LOCAL_FILES_ROOT:         /tmp
+
+  # ── 4. Harness dry-run ─────────────────────────────────────────────────────
+  harness-dry-run:
+    name: Harness dry-run (task list only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Dry-run harness (verify task definitions load)
+        run: python run_harness.py --dry-run
+        env:
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
+          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
+          NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
+          LOCAL_FILES_ROOT:         /tmp
+
+  # ── 5. Build package ──────────────────────────────────────────────────────
+  build:
+    name: Build package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Verify package with twine
+        run: twine check dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7

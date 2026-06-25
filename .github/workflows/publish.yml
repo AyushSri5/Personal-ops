@@ -1,0 +1,198 @@
+name: Publish to PyPI
+
+on:
+  # Trigger on GitHub Release creation
+  release:
+    types: [published]
+
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Publish target"
+        required: true
+        default: testpypi
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  # ── 1. Run full CI first ───────────────────────────────────────────────────
+  ci-gate:
+    name: CI gate (lint + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" ruff
+
+      - name: Lint
+        run: ruff check . --output-format=github
+
+      - name: Unit tests
+        run: pytest tests/ -v --tb=short
+        env:
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
+          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
+          NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
+          POSTGRES_PASSWORD:        ${{ secrets.POSTGRES_PASSWORD || 'ops_password' }}
+          LOCAL_FILES_ROOT:         /tmp
+
+      - name: Harness dry-run
+        run: python run_harness.py --dry-run
+        env:
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
+          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
+          LOCAL_FILES_ROOT:         /tmp
+
+  # ── 2. Build sdist + wheel ─────────────────────────────────────────────────
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    needs: ci-gate
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build + twine
+        run: pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Verify with twine
+        run: twine check dist/*
+
+      - name: Extract version from package
+        id: get-version
+        run: |
+          VERSION=$(python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(d['project']['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  # ── 3. Publish to TestPyPI ─────────────────────────────────────────────────
+  publish-testpypi:
+    name: Publish → TestPyPI
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'testpypi'
+      || github.event_name == 'release'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/personal-ops-agent
+    permissions:
+      id-token: write   # Required for OIDC trusted publisher
+
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          verbose: true
+          print-hash: true
+
+  # ── 4. Smoke test from TestPyPI ───────────────────────────────────────────
+  smoke-test:
+    name: Smoke test from TestPyPI
+    runs-on: ubuntu-latest
+    needs: [build, publish-testpypi]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install from TestPyPI
+        run: |
+          pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            personal-ops-agent==${{ needs.build.outputs.version }}
+
+      - name: Verify CLI entry points exist
+        run: |
+          personal-ops --help
+          ops-harness --dry-run
+        env:
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
+          GITHUB_PAT:               ${{ secrets.GITHUB_PAT }}
+          NOTION_API_KEY:           ${{ secrets.NOTION_API_KEY }}
+          NOTION_NOTES_DATABASE_ID: ${{ secrets.NOTION_NOTES_DATABASE_ID }}
+          POSTGRES_PASSWORD:        ${{ secrets.POSTGRES_PASSWORD || 'ops_password' }}
+          LOCAL_FILES_ROOT:         /tmp
+
+  # ── 5. Publish to PyPI (production) ───────────────────────────────────────
+  publish-pypi:
+    name: Publish → PyPI (production)
+    runs-on: ubuntu-latest
+    needs: [build, smoke-test]
+    if: |
+      github.event_name == 'release' && github.event.action == 'published'
+      || github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'pypi'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/personal-ops-agent
+    permissions:
+      id-token: write   # Required for OIDC trusted publisher
+
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          print-hash: true
+
+  # ── 6. Create GitHub Release summary ──────────────────────────────────────
+  release-summary:
+    name: Post release summary
+    runs-on: ubuntu-latest
+    needs: [build, publish-pypi]
+    if: always() && github.event_name == 'release'
+    steps:
+      - name: Write job summary
+        run: |
+          echo "## 🚀 Published personal-ops-agent v${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| TestPyPI | ✅ [View](https://test.pypi.org/project/personal-ops-agent/${{ needs.build.outputs.version }}/) |" >> $GITHUB_STEP_SUMMARY
+          echo "| PyPI     | ✅ [View](https://pypi.org/project/personal-ops-agent/${{ needs.build.outputs.version }}/) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "pip install personal-ops-agent==${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
