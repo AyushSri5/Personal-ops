@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # ── LLM ──────────────────────────────────────────────────────────────────
     openai_api_key: str = Field(..., description="OpenAI API key")
-    agent_model: str = Field("gpt-4o")
+    agent_model: str = Field("gpt-4o-mini")
     agent_temperature: float = Field(0.0)
     agent_max_iterations: int = Field(25)
 
